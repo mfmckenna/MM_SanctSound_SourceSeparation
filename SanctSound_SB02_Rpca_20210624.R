@@ -3,15 +3,15 @@
 
 #-----------------------------------------------------------------------------------------
 #NOTES
-#tested on SB01 and CI01 to run rpca (robust PCA)
-# low-rank spectra- how does this relate to ships vs windspeed
+#tested on SB01 and CI01 to run rrpca (robust PCA)
+# low-rank spectra- how does this relate to ships vs wind speed
 # sparse spectra-   how does this relate to biological events
 # Then run SVD to find representative specta- how does this relate to percentile spectra
 
 #UPDATES
 # 2021.06.24-- updated to use with SB02 to quantify major shift in conditions, 
 # can we determine is shift was in transient or chronic?
-#NOTE: hourly SPL data are combined with weather, and only daily metrics of AIS ships and biological detections
+#NOTE: hourly SPL data are combined with weather, and only daily metrics of AIS ships and biological detentions
 
 #-----------------------------------------------------------------------------------------
 rm(list=ls())
@@ -28,28 +28,31 @@ library(plyr)
 #-----------------------------------------------------------------------------------------
 #INPUT FILES
 #-----------------------------------------------------------------------------------------
-inDir = "H:\\RESEARCH\\SanctSound\\data2\\combineFiles3_Detections"
+tDir  =  "E:\\RESEARCH\\SanctSound\\"
+inDir = paste0(tDir,"data2\\combineFiles3_Detections")
+cDir  = "E:\\CODE\\GitHub\\MM_SanctSound_SourceSeparation\\"
+
 sanct = "SB"
-site = "SB02"
+site  = "SB02"
 inHr  = list.files(inDir,sanct,full.names = T)
 load(inHr[1])
 load(inHr[3])
 
 #SET UP PARAMETERS-- plotting
 #-----------------------------------------------------------------------------------------
-o3b = fread(input="H:\\RESEARCH\\SanctSound\\code\\RPCAmethods\\O3OB_SanctSound.csv")
+o3b = fread(input=paste0(cDir, "O3OB_SanctSound.csv"))
 clrs= colorRampPalette(rev(c("orange","purple")))(100)
 
 #TOL files by site-deployment
 #-----------------------------------------------------------------------------------------
-sdir     = paste("H:\\RESEARCH\\SanctSound\\data",sanct,site,sep="\\")
+sdir     = paste0(tDir, "data\\",sanct,"\\", site,sep="\\")
 TOLFiles = list.files(sdir,pattern = "TOL_1h.csv",recursive = T)
 PSDFiles = list.files(sdir,pattern = "PSD_1h.csv",recursive = T)
 uSites   = unique( sapply( strsplit(basename(TOLFiles),"_") , `[`, 2) )
 
 #Time periods of interest
 #-----------------------------------------------------------------------------------------
-timesInterst = read.csv( "H:\\RESEARCH\\SanctSound\\data\\AnalysisPeriods.csv")
+timesInterst = read.csv( paste0(tDir,"data\\AnalysisPeriods.csv") )
 
 #Truncate to period of interest-- 2019-2020
 tmpAP   = timesInterst[timesInterst$Site == site,]
@@ -90,7 +93,7 @@ pS = ggplot(detm, aes(DateTime2, variable, fill= as.numeric(valueP))) +
   scale_y_discrete(labels = ulabs) +
   #labs(fill = "% Daily Samples") +
   xlab("") +   ylab("") +
-  ggtitle("Overlapping presence of sources") +
+  ggtitle(paste0( "Overlapping presence of sources: ",site)) +
   theme(legend.position = "none")
 # wind and tide
 dCols
@@ -122,7 +125,7 @@ grid.arrange(pWl, ptl, ncol=1, nrow = 2)
 #ANALYSIS: run as separate sites
 #-----------------------------------------------------------------------------------------
 # Robust principal components analysis separates a matrix into a low-rank plus sparse component
-#a method for the robust seperation of a a rectangular (m, n) matrix A into a low-rank component L and a sparse comonent S:
+#a method for the robust separation of a a rectangular (m, n) matrix A into a low-rank component L and a sparse component S:
 
 setwd(sdir)
 
@@ -160,7 +163,7 @@ NvP  = as.matrix(10^(Nv/20))     #pressure units
 
 #RRPCA method for source separation
 #-----------------------------------------------------------------------------------------
-input = NvP # Nv (dB units)
+input = NvP # or Nv (dB units)
 lamd = max(input)^-0.5 #default
 nvpcaTOL = rrpca(input, trace=T, lambda = lamd)
 #NOTE: pressure units avoid a negative change in ambient when transients removed
