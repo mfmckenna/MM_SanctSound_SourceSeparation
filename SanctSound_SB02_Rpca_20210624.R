@@ -63,9 +63,12 @@ min( cdetft$DateF)
 max( cdetft$DateF)
 # currently no data for December 2020 in the comparision
 
-#-----------------------------------------------
+#-----------------------------------------------------------------------------------------
+#DATA EVALVUATION 
+#-----------------------------------------------------------------------------------------
+
 #TILE PLOT TO SHOW OVERLAP IN SOURCE PRESENT
-#-----------------------------------------------
+#-----------------------------------------------------------------------------------------
 dCols = data.frame(colnames(cdetft)) 
 dCols
 detm = reshape :: melt(cdetft, id.vars = "DateF", 
@@ -117,9 +120,110 @@ ptl = ggplot(abioDaymWind, aes(DateTime2, value) )+
   ylab("Tidal change")+
   theme(axis.text.x = element_blank() )+
   theme_minimal()
+
 #copy to ppt and aligned there
-pS
+pS 
 grid.arrange(pWl, ptl, ncol=1, nrow = 2)
+
+#-----------------------------------------------------------------------------------------
+# proportion of hours with different conditions: ambient, vessels only, vessel+bio, bio
+as.data.frame(colnames(cdetft))
+cdetft$Yr = year(cdetft$DateF)
+#2019
+cdetftPie = cdetft[cdetft$Yr == 2019,] 
+#summ biological detections
+cdetftPie$BioAll  =  rowSums(cdetftPie[,43:47], na.rm = T)
+#sum( cdetftPie$BioAll == 0)
+#hist(cdetftPie$BioAll)
+cdetftPie$BioAllP =  ifelse(cdetftPie$BioAll > 0, cdetftPie$BioAll, 0) #bio to presence/absence
+sum( cdetftPie$BioAllP == 0)
+
+cdetftPie$VessP  =  ifelse(cdetftPie$TotalVesselDet > 0,  1, cdetftPie$TotalVesselDet)
+cdetftPie$Soundscape  = 0
+cdetftPie$Soundscape1 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP == 0, 3, 0) #vess
+cdetftPie$Soundscape2 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP  > 0, 2, 0) #vess+bio
+cdetftPie$Soundscape3 = ifelse(cdetftPie$VessP == 0 & cdetftPie$BioAllP > 0, 1, 0) #bio
+cdetftPie$Soundscape  = rowSums( cdetftPie[,54:56])
+
+slices <- c(sum(cdetftPie$Soundscape ==0), sum(cdetftPie$Soundscape ==1),sum(cdetftPie$Soundscape ==2),sum(cdetftPie$Soundscape ==3) )
+lbls <- c("Ambient", "Bio only", "Bio+Vess", "Vessel only")
+par(mfrow=c(1,2),oma=c(20,2,2,2),mar=c(2,2,2,2))
+pie(slices, labels = lbls,  main = paste0("2019: SB02 Soundscape Summary \n(", round(nrow(cdetftPie)/24)," days)"))
+
+#2020
+cdetftPie = cdetft[cdetft$Yr == 2020,] 
+cdetftPie$BioAll = rowSums(cdetftPie[,43:47], na.rm = T)
+cdetftPie$BioAllP =  ifelse(cdetftPie$BioAll > 0, cdetftPie$BioAll, 0) #bio to presence/absence
+cdetftPie$VessP  =  ifelse(cdetftPie$TotalVesselDet > 0,  1, cdetftPie$TotalVesselDet)
+cdetftPie$Soundscape  = 0
+cdetftPie$Soundscape1 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP == 0, 3, 0) #vess
+cdetftPie$Soundscape2 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP  > 0, 2, 0) #vess+bio
+cdetftPie$Soundscape3 = ifelse(cdetftPie$VessP == 0 & cdetftPie$BioAllP > 0, 1, 0) #bio
+cdetftPie$Soundscape  = rowSums( cdetftPie[,54:56])
+
+slices <- c(sum(cdetftPie$Soundscape ==0), sum(cdetftPie$Soundscape ==1),sum(cdetftPie$Soundscape ==2),sum(cdetftPie$Soundscape ==3) )
+lbls <- c("Ambient", "Bio only", "Bio+Vess", "Vessel only")
+pie(slices, labels = lbls, main = paste0("2020: SB02 Soundscape Summary \n(", round(nrow(cdetftPie)/24)," days)"))
+
+#ALL
+cdetftPie = cdetft
+cdetftPie$BioAll = rowSums(cdetftPie[,44:47], na.rm = T)
+cdetftPie$BioAllP =  ifelse(cdetftPie$BioAll > 0, cdetftPie$BioAll, 1) #bio to presence/absence
+cdetftPie$VessP  =  ifelse(cdetftPie$TotalVesselDet > 0,  1, cdetftPie$TotalVesselDet)
+cdetftPie$Soundscape  = 0
+cdetftPie$Soundscape1 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP == 0, 3, 0) #vess
+cdetftPie$Soundscape2 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP  > 0, 2, 0) #vess+bio
+cdetftPie$Soundscape3 = ifelse(cdetftPie$VessP == 0 & cdetftPie$BioAllP > 0, 1, 0) #bio
+cdetftPie$Soundscape  = rowSums( cdetftPie[,54:56])
+as.data.frame(colnames(cdetftPie))
+slices <- c(sum(cdetftPie$Soundscape ==0), sum(cdetftPie$Soundscape ==1), sum(cdetftPie$Soundscape ==2), sum(cdetftPie$Soundscape ==3) )
+lbls <- c("Ambient", "Bio", "Bio+Vess", "Vess")
+pie(slices, labels = lbls, main = paste0("All data: SB02 Soundscape Summary (", round(nrow(cdetftPie)/24)," days)") )
+
+#-----------------------------------------------------------------------------------------
+#COMPARISIONS- with without vessel present-- is there a bias in variation?
+head( cdetft )
+cNoVess = cdetft[cdetft$TotalVesselDet == 0,]
+cYeVess = cdetft[cdetft$TotalVesselDet > 0,]
+
+#boxplot of windspeed-- is wind speed higher without vessel detection? 
+BBm = reshape :: melt(cdetft, id.vars = "TotalVesselDet", measure.vars = c("avgWSPD"))
+BBm$TotalVesselDet = as.numeric(as.character(BBm$TotalVesselDet))
+BBm$value = as.numeric(as.character(BBm$value))
+ ggplot(BBm, aes(TotalVesselDet, value, group=TotalVesselDet)) + 
+  geom_boxplot()+
+  ylab("Wind speed")+ xlab("Vessel detections")
+
+#boxplot of sound level-- is sound level lower without vessel detection?
+ BBm = reshape :: melt(cdetft, id.vars = "TotalVesselDet", measure.vars = c("OL_125"))
+ BBm$TotalVesselDet = as.numeric(as.character(BBm$TotalVesselDet))
+ BBm$value = as.numeric(as.character(BBm$value))
+ ggplot(BBm, aes(TotalVesselDet, value, group=TotalVesselDet)) + 
+   geom_boxplot()+
+   ylab("Sound Level")+ xlab("Vessel detections")
+ 
+#-----------------------------------------------------------------------------------------
+# SPECTROGRAM
+ tLabel = paste0( "Low rank: ", site, "-", as.character(min(cdetft$DateF)), "-", as.character( max(cdetft$DateF) ), " (hours = ", length(cdetft$DateF), ")")
+ 
+ SPLm = reshape :: melt(cdetft, id.vars = "DateF", 
+                        measure.vars = c("OL_31.5", "OL_63", "OL_125","OL_250",
+                                         "OL_500", "OL_1000", "OL_2000", "OL_4000","OL_8000","OL_16000"))
+#SPLm$Fq = as.numeric( gsub("OL_","", SPLm$variable) )
+   
+SPLm$Fq <- factor(SPLm$variable, ordered = TRUE, 
+                                 levels = c("OL_31.5", "OL_63", "OL_125","OL_250",
+                                            "OL_500", "OL_1000", "OL_2000", "OL_4000","OL_8000","OL_16000"))
+ggplot(SPLm, aes(DateF, Fq, fill=value)) + 
+  geom_raster() +
+  xlab("Date")+ ylab("Frequency")+ 
+  scale_fill_gradient(low="white", high="purple") +
+  labs(x="Sample hour", y="Frequency", title=tLabel) +
+  theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
+                     axis.text.y=element_text(size=9),
+                     plot.title=element_text(size=11))
+#not ideal... because frequency ranges are same size tile... how do I plot so spacing is correct?
+
 
 #-----------------------------------------------------------------------------------------
 #ANALYSIS: run as separate sites
@@ -129,7 +233,7 @@ grid.arrange(pWl, ptl, ncol=1, nrow = 2)
 
 setwd(sdir)
 
-#TOL variation-- hourly one third octave bands
+#FORMAT DATA: TOL variation-- hourly one third octave bands, 
 #-----------------------------------------------
 #df   = as.data.frame ( fread(input=TOLFiles[2]))
 #stmp = sapply( strsplit(basename(TOLFiles[2]),"_") , `[`, 2)
@@ -159,52 +263,111 @@ hix  = as.numeric( gsub("TOL_","",names(nv)[2:34]) )
 Nv   = as.matrix( ( nv[,2:34]) ) #dB
 hist(as.numeric(Nv))
 NvP  = as.matrix(10^(Nv/20))     #pressure units
-
+nvDate = nv$DateF
 
 #RRPCA method for source separation
 #-----------------------------------------------------------------------------------------
 input = NvP # or Nv (dB units)
 lamd = max(input)^-0.5 #default
-nvpcaTOL = rrpca(input, trace=T, lambda = lamd)
+nvpcaTOL = rrpca(input)
 #NOTE: pressure units avoid a negative change in ambient when transients removed
 
-#data formatting
-Am = as.data.frame(input) # min(Nv) max(Nv)
-Lr = as.data.frame(nvpcaTOL$L) # all negative values
-Sp = as.data.frame(nvpcaTOL$S) # all positive values
-colnames(Lr) = hix
-colnames(Sp) = hix
-LrDB = 10*log10( Lr^2 )
-SpDB = 10*log10( Sp^2 ) 
-colnames(LrDB) = hix
-colnames(SpDB) = hix
+#OUTPUT formatting
+#-----------------------------------------------------------------------------------------
+#input data 
+Am = as.data.frame(input)   
 
-# visualize results-- spectra for each hour
+#low rank
+Lr = as.data.frame(nvpcaTOL$L) 
+colnames(Lr) = hix
+LrDB = 10*log10( Lr^2 )  #CHECK: min(LrDB$`63`), no negative values, just values without transients
+colnames(LrDB) = hix
+#LrDB$DateTimeF = nv$DateF
+LrDB =as.matrix(LrDB)
+
+#sparse matrix
+Sp = as.data.frame(nvpcaTOL$S) 
+colnames(Sp) = hix
+# negative and zero values-- does not make sense to convert back to dB
+SpDB = 10*log10( (Sp)^2 ) 
+colnames(SpDB) = hix
+#Sp$DateTimeF = nv$DateF
+
+# visualize results-- LOW RANK
+#-----------------------------------------------------------------------------------------
+#1) spectra for each hour
 NvMlr <- reshape :: melt(t(LrDB)  )
-hist(NvMlr$value)
+tLabel = paste0( "Low rank: ", site, "-", as.character(min(nv$DateF)), "-", as.character( max(nv$DateF) ), " (hours = ", length(nv$DateF), ")")
+tLabelo = paste0( "Original: ", site, "-", as.character(min(nv$DateF)), "-", as.character( max(nv$DateF) ), " (hours = ", length(nv$DateF), ")")
+head( NvMlr )
+hist(NvMlr$value,main=tLabel)
+
 ggplot(NvMlr, aes(X1, value, group = as.factor(X2)))+ 
   geom_line(alpha=.05)+ scale_x_continuous(trans = "log10")+ 
-  ggtitle("Low rank")+ xlab("")+ theme_minimal()
+  ggtitle(tLabel)+ xlab("")+ theme_minimal()
+## NEXT: color by windspeed
 
+
+#2) Spectrograms/images
+oldpar <- par(no.readonly=T)
+par(mfrow=c(2,1),oma=c(4,2,1,1),mar=c(1,4.5,1,1)+.1,mgp=c(3.5,0.75,0),las=1)
+zl=c(min(min(LrDB),min(LrDB)), max(Nv))
+clrs=colorRampPalette(rev(c("orange","purple")))(100)
+
+image(Nv[dim(Nv)[1]:1,],col=clrs,axes=F,zlim=zl,main = tLabelo)
+axis(side=2,at=1:11/11,labels=o3b$CentHz[seq(from=3,to=33,by=3)])
+
+image(LrDB[dim(LrDB)[1]:1,],col=clrs,axes=F,zlim=zl,main = tLabel)
+axis(side=2,at=1:11/11,labels=o3b$CentHz[seq(from=3,to=33,by=3)])
+
+mtext(text="time in hours",side=1,outer=T,las=0,line=2.5)
+mtext(text="one-third octave band (Hz)",side=2,outer=T,las=0)
+par(oldpar)
+
+#OTHER OPTIONS... not as ideal
+image(1:ncol(LrDB), 1:nrow(LrDB), t(LrDB)[, nrow(LrDB):1])  #low rank matrix
+ggplot(NvMlr, aes((X2), X1, fill=value)) + 
+  geom_tile() + 
+  scale_fill_gradient(low="grey90", high="red") +
+  labs(x="Sample hour", y="Frequency", title=tLabel) +
+  theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
+                     axis.text.y=element_text(size=9),
+                     plot.title=element_text(size=11))
+
+
+#DIFFERENCE in LR from "ambient" in each frequency band and each hour (difference matrix)
+# how much did ambient change when transients removed?
+#-----------------------------------------------------------------------------------------
+# Difference in LR to ambient, if positive, transients removed, so ambient (LR) is actually XX lower 
+diffAmb = ( Nv - LrDB ) #difference in dB
+colnames(diffAmb) = hix
+diffAmbt = reshape :: melt(t(diffAmb)  )
+min(diffAmb)
+max(diffAmb)
+diffAmb = as.data.frame(( diffAmb))
+
+#what was the average change for each year- in specific frequency 
+diffAmb_date =  cbind(diffAmb, nv$DateF) 
+diffAmb_date$Yr = year(diffAmb_date$`nv$DateF`)
+aggregate(diffAmb$`63`,  by=list(diffAmb_date$Yr), mean)
+aggregate(diffAmb$`125`, by=list(diffAmb_date$Yr), min)
+
+#PLOT: what does the difference look like, summarized by frequency, each point is an hourly measure
+ggplot(diffAmbt, aes(value, as.factor(X1), group = X1) )+
+  geom_boxplot()+
+  xlab("Difference in ambient")+
+  ylab("Frequency (1/3 octave bands)")+
+  ggtitle("How much transient sounds add to ambient levels")
+
+
+# visualize results-- Sparse
+#-----------------------------------------------------------------------------------------
 NvMsp <- reshape :: melt(t(SpDB)  )
 hist(NvMsp$value)
 ggplot(NvMsp, aes(X1, (value), group = as.factor(X2)))+ 
   geom_line(alpha=.05)+ scale_x_continuous(trans = "log10")+ 
   ggtitle("Sparse")+ xlab("")+ theme_minimal()
 
-
-#DIFFERENCE in LR from "ambient" in each frequency band and each hour (difference matrix)
-# how much did ambient change when transients removed?
-#-----------------------------------------------------------------------------------------
-### Difference in LR to ambient...
-diffAmb = input - Lr #if positive, transients removed, so ambient (LR) is actually lower
-colnames(diffAmb) = hix
-diffAmbt <- reshape :: melt(t(diffAmb)  )
-#PLOT: what does the difference look like, summarized by frequency, each point is an houly measure
-ggplot(diffAmbt, aes(value, as.factor(X1), group = X1) )+
-  geom_boxplot()+
-  xlab("Difference in ambient")+
-  ylab("Frequency (1/3 octave bands)")
 #?? still do not understand why levels are negative-- 
 # how could ambient levels be lower when transients removed?
 # copied to PPT "Source Separation"
@@ -214,9 +377,9 @@ ggplot(diffAmbt, aes(value, as.factor(X1), group = X1) )+
 nvRc = cbind(as.character(nv$DateF), diffAmb)
 colnames(nvRc)[1] = "DateF"
 nvRc$DateF = as.POSIXct(nvRc$DateF , tz = "GMT") #head(nvRc) #check
-nvRc$Yr = year(nvRc$DateF)
-nvRc$Mth = month(nvRc$DateF)
-nvRcMar = nvRc[nvRc$Mth == 3,]
+nvRc$Yr   = year(nvRc$DateF)
+nvRc$Mth  = month(nvRc$DateF)
+nvRcMar   = nvRc[nvRc$Mth == 3,]
 nvRcMar19 = nvRcMar[nvRcMar$Yr == 2019,]
 nvRcMar20 = nvRcMar[nvRcMar$Yr == 2020,]
 diffAmb19 <- reshape :: melt(t(nvRcMar19[,2:34]) )

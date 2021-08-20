@@ -297,7 +297,7 @@ pBW = ggplot(NvLdett, aes(FQ, SPL, group = as.factor(TIMESTEP), colour=as.factor
   scale_x_continuous(name = "Frequency 1/3 octave bands", breaks = c(1,10,20,30), labels = c(hix[1], hix[10], hix[20],hix[30]))+
   theme(legend.position = "none")
 
-#PLOT: sparse matric with VESSEL present, only
+#PLOT: sparse matrix with VESSEL present, only
 samps = nrow(c1S[c1S$VesP>0,])
 detR = do.call(rbind, replicate(ncol(nvpcaTOL$S), c1S$VesP, simplify=FALSE))
 detRm <- reshape :: melt((detR)  )
@@ -315,7 +315,7 @@ pVE = ggplot(NvLdett, aes(FQ, SPL, group = as.factor(TIMESTEP), colour=as.factor
   scale_x_continuous(name = "Frequency 1/3 octave bands", breaks = c(1,10,20,30), labels = c(hix[1], hix[10], hix[20],hix[30]))+
   theme(legend.position = "none")
 
-#PLOT: sparse matric with VESSEL present
+#PLOT: sparse matrix with VESSEL present
 detR = do.call(rbind, replicate(ncol(nvpcaTOL$S), c1S$explosionsDet, simplify=FALSE))
 detRm <- reshape :: melt((detR)  )
 colnames(detRm)=c("FQ","TIMESTEP","DET")
@@ -483,7 +483,7 @@ pComp = ggplot(dfLL,aes(x = DateTimeF ) )+
   theme_minimal()
 grid.arrange(pComp,pDiff,nrow = 2,ncol=1)
 
-#plot positive negative values diferent colr
+#plot positive negative values different colr
 pDiff2= ggplot()+
   geom_bar(data=dfLL, aes(x=DateTimeF,y=Diff,fill=pos),size=1.55,stat="identity",position='identity') +
   xlab("")+
