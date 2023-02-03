@@ -33,19 +33,13 @@ tDir  =  "E:\\RESEARCH\\SanctSound\\"
 inDir = paste0(tDir,"data2\\combineFiles3_Detections")
 cDir  = "E:\\CODE\\GitHub\\MM_SanctSound_SourceSeparation\\"
 
-sanct = "SB"
-site  = "SB02"
-inFiles  = list.files(inDir,sanct,full.names = T)
-load(inFiles[5])#hourly data
-#inHr  = read.csv(inFiles[3]) 
+#eventually, create a loop through the sites...
+sanct = "SB"   #"SB"
+site  = "SB02" #"SB02"
 
-load(inFiles[1])#hourly data
-#inDay = read.csv(inFiles[1]) #Day data
-
-#SET UP PARAMETERS-- plotting
+#1/3 octave band data
 #-----------------------------------------------------------------------------------------
 o3b = fread(input=paste0(cDir, "O3OB_SanctSound.csv"))
-clrs= colorRampPalette(rev(c("orange","purple")))(100)
 
 #TOL files by site-deployment
 #-----------------------------------------------------------------------------------------
@@ -54,182 +48,39 @@ TOLFiles = list.files(sdir,pattern = "TOL_1h.csv",recursive = T)
 PSDFiles = list.files(sdir,pattern = "PSD_1h.csv",recursive = T)
 uSites   = unique( sapply( strsplit(basename(TOLFiles),"_") , `[`, 2) )
 
-#Time periods of interest
-#-----------------------------------------------------------------------------------------
-timesInterst = read.csv( paste0(tDir,"data\\AnalysisPeriods.csv") )
 
-#Truncate to period of interest-- 2019-2020
-tmpAP   = timesInterst[timesInterst$Site == site,]
-cdetft  = dataAhr[ (as.Date(dataAhr$Day)  >= as.Date(tmpAP$DateStart,format = "%m/%d/%Y") 
-                    & as.Date(dataAhr$Day) <= as.Date(tmpAP$DateEnd,format = "%m/%d/%Y") ),]
-cdetft  = cdetft[!is.na(cdetft$Deployment),] #had to remove NAs, effort control, but does not work in the analysis
-min( cdetft$DateF)
-max( cdetft$DateF)
+#summary of detection data to compare to results (output of 3_combineFiles_detections)
+#-----------------------------------------------------------------------------------------
+if (site == "SB02") {
+  inFiles  = list.files(inDir,sanct,full.names = T)
+  load(inFiles[5])#HOUR data
+  load(inFiles[1])#DAY data
+  
+  # select time periods of interest
+  timesInterst = read.csv( paste0(tDir,"data\\AnalysisPeriods.csv") )
+  tmpAP   = timesInterst[timesInterst$Site == site,]
+  dataAhrt  = dataAhr[ (as.Date(dataAhr$Day)  >= as.Date(tmpAP$DateStart,format = "%m/%d/%Y") 
+                        & as.Date(dataAhr$Day) <= as.Date(tmpAP$DateEnd,format = "%m/%d/%Y") ),]
+  dataAhrt  = dataAhrt[!is.na(dataAhrt$Deployment),] #had to remove NAs, effort control, but does not work in the analysis
+  
+  dataAdyt  = iData[ (as.Date(iData$Day)  >= as.Date(tmpAP$DateStart,format = "%m/%d/%Y") 
+                      & as.Date(iData$Day) <= as.Date(tmpAP$DateEnd,format = "%m/%d/%Y") ),]
+  dataAdyt  = dataAdyt[!is.na(dataAdyt$Deployment),] #had to remove NAs, effort control, but does not work in the analysis
+  rm(tmpAP)
+  
+}
+#narw
+length( dataAdyt [ dataAdyt$northatlanticrightwhaleP == 1 & dataAdyt$Yr == 2020 & dataAdyt$Month == 4, 2] )
+length( dataAdyt [ dataAdyt$northatlanticrightwhaleP == 1 & dataAdyt$Yr == 2019 & dataAdyt$Month == 4, 2] )
+#fin whales
+length( dataAdyt [ dataAdyt$finwhaleP == 1 & dataAdyt$Yr == 2020 & dataAdyt$Month == 4, 2] )
+length( dataAdyt [ dataAdyt$finwhaleP == 1 & dataAdyt$Yr == 2019 & dataAdyt$Month == 4, 2] )
+
+#SET UP PARAMETERS-- plotting
+#-----------------------------------------------------------------------------------------
+clrs= colorRampPalette(rev(c("orange","purple")))(100)
 
 # currently no data for December 2020 in the comparison
-
-#-----------------------------------------------------------------------------------------
-#DATA EVALVUATION 
-#-----------------------------------------------------------------------------------------
-
-#TILE PLOT TO SHOW OVERLAP IN SOURCE PRESENT
-#-----------------------------------------------------------------------------------------
-dCols = data.frame(colnames(cdetft)) 
-dCols
-detm = reshape :: melt(cdetft, id.vars = "DateF", 
-                       measure.vars = c("bluewhaleP", "finwhaleP", "humpbackwhaleP","northatlanticrightwhaleP",
-                                        "seiwhaleP", "atlanticcod", "dolphins", "TotalVesselDet","LOA_ALL_UV"))
-detm$Day = as.Date(detm$DateF)
-detm$DateTime2 = as.POSIXct(detm$DateF,tz = "GMT")
-
-# total detections per hour...
-#starts at bottom
-ulabs = c("Vessel" ,"Whale", "Fish sp","Fish 2", "Explosion" ) #generic
-unique( detm$variable )
-#rescale-- not helplful
-detm$valueS = (detm$value- min(detm$value)) / ((max(detm$value) - min(detm$value)))
-#rescale to presence absence
-detm$valueP = 0 
-detm$valueP[detm$value> 0] = 1
-idx = which(detm$DateF == "2020-01-01")
-ulabs = c("1" ,"2", "3","4", "5", "6","7","8","9") #generic to test
-ulabs = c("BW" ,"FW", "HBW","NARW", "SW", "COD","DOLP","VESS","AIS")
-pS = ggplot(detm, aes(DateTime2, variable, fill= as.numeric(valueP))) + 
-  geom_tile() +
-  geom_vline(xintercept = detm$DateF[idx],color = "red")+
-  #scale_fill_gradient(low="white", high="blue") +
-  scale_y_discrete(labels = ulabs) +
-  #labs(fill = "% Daily Samples") +
-  xlab("") +   ylab("") +
-  ggtitle(paste0( "Overlapping presence of sources: ",site)) +
-  theme(legend.position = "none")
-# wind and tide
-dCols
-abioDaym = reshape :: melt(cdetft, id.vars = "DateF", 
-                           measure.vars = c("avgWSPD","changeWL"))
-abioDaym$DateTime2 = as.POSIXct(abioDaym$DateF )
-abioDaymWind = abioDaym[ abioDaym$variable == "avgWSPD", ]
-idx = which(abioDaymWind$DateF == "2020-01-01")
-pWl = ggplot(abioDaymWind, aes(DateTime2, value) )+ 
-  geom_line(size = 1) +
-  geom_vline(xintercept = abioDaymWind$DateF[idx],color = "gray")+
-  xlab("") +   ylab("Wind speed")+
-  theme(    axis.text.x = element_blank() )+
-  theme_minimal()
-abioDaymWind = abioDaym[ abioDaym$variable == "changeWL", ]
-
-ptl = ggplot(abioDaymWind, aes(DateTime2, value) )+ 
-  geom_line(size = 1) +
-  geom_vline(xintercept = abioDaymWind$DateF[idx],color = "gray")+
-  xlab("") +
-  ylab("Tidal change")+
-  theme(axis.text.x = element_blank() )+
-  theme_minimal()
-
-#copy to ppt and aligned there
-pS 
-grid.arrange(pWl, ptl, ncol=1, nrow = 2)
-
-#-----------------------------------------------------------------------------------------
-# proportion of hours with different conditions: ambient, vessels only, vessel+bio, bio
-as.data.frame(colnames(cdetft))
-cdetft$Yr = year(cdetft$DateF)
-#2019
-cdetftPie = cdetft[cdetft$Yr == 2019,] 
-#summ biological detections
-cdetftPie$BioAll  =  rowSums(cdetftPie[,43:47], na.rm = T)
-#sum( cdetftPie$BioAll == 0)
-#hist(cdetftPie$BioAll)
-cdetftPie$BioAllP =  ifelse(cdetftPie$BioAll > 0, cdetftPie$BioAll, 0) #bio to presence/absence
-sum( cdetftPie$BioAllP == 0)
-
-cdetftPie$VessP  =  ifelse(cdetftPie$TotalVesselDet > 0,  1, cdetftPie$TotalVesselDet)
-cdetftPie$Soundscape  = 0
-cdetftPie$Soundscape1 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP == 0, 3, 0) #vess
-cdetftPie$Soundscape2 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP  > 0, 2, 0) #vess+bio
-cdetftPie$Soundscape3 = ifelse(cdetftPie$VessP == 0 & cdetftPie$BioAllP > 0, 1, 0) #bio
-cdetftPie$Soundscape  = rowSums( cdetftPie[,54:56])
-
-slices <- c(sum(cdetftPie$Soundscape ==0), sum(cdetftPie$Soundscape ==1),sum(cdetftPie$Soundscape ==2),sum(cdetftPie$Soundscape ==3) )
-lbls <- c("Ambient", "Bio only", "Bio+Vess", "Vessel only")
-par(mfrow=c(1,2),oma=c(20,2,2,2),mar=c(2,2,2,2))
-pie(slices, labels = lbls,  main = paste0("2019: SB02 Soundscape Summary \n(", round(nrow(cdetftPie)/24)," days)"))
-
-#2020
-cdetftPie = cdetft[cdetft$Yr == 2020,] 
-cdetftPie$BioAll = rowSums(cdetftPie[,43:47], na.rm = T)
-cdetftPie$BioAllP =  ifelse(cdetftPie$BioAll > 0, cdetftPie$BioAll, 0) #bio to presence/absence
-cdetftPie$VessP  =  ifelse(cdetftPie$TotalVesselDet > 0,  1, cdetftPie$TotalVesselDet)
-cdetftPie$Soundscape  = 0
-cdetftPie$Soundscape1 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP == 0, 3, 0) #vess
-cdetftPie$Soundscape2 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP  > 0, 2, 0) #vess+bio
-cdetftPie$Soundscape3 = ifelse(cdetftPie$VessP == 0 & cdetftPie$BioAllP > 0, 1, 0) #bio
-cdetftPie$Soundscape  = rowSums( cdetftPie[,54:56])
-
-slices <- c(sum(cdetftPie$Soundscape ==0), sum(cdetftPie$Soundscape ==1),sum(cdetftPie$Soundscape ==2),sum(cdetftPie$Soundscape ==3) )
-lbls <- c("Ambient", "Bio only", "Bio+Vess", "Vessel only")
-pie(slices, labels = lbls, main = paste0("2020: SB02 Soundscape Summary \n(", round(nrow(cdetftPie)/24)," days)"))
-
-#ALL
-cdetftPie = cdetft
-cdetftPie$BioAll = rowSums(cdetftPie[,44:47], na.rm = T)
-cdetftPie$BioAllP =  ifelse(cdetftPie$BioAll > 0, cdetftPie$BioAll, 1) #bio to presence/absence
-cdetftPie$VessP  =  ifelse(cdetftPie$TotalVesselDet > 0,  1, cdetftPie$TotalVesselDet)
-cdetftPie$Soundscape  = 0
-cdetftPie$Soundscape1 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP == 0, 3, 0) #vess
-cdetftPie$Soundscape2 = ifelse(cdetftPie$VessP > 0 & cdetftPie$BioAllP  > 0, 2, 0) #vess+bio
-cdetftPie$Soundscape3 = ifelse(cdetftPie$VessP == 0 & cdetftPie$BioAllP > 0, 1, 0) #bio
-cdetftPie$Soundscape  = rowSums( cdetftPie[,54:56])
-as.data.frame(colnames(cdetftPie))
-slices <- c(sum(cdetftPie$Soundscape ==0), sum(cdetftPie$Soundscape ==1), sum(cdetftPie$Soundscape ==2), sum(cdetftPie$Soundscape ==3) )
-lbls <- c("Ambient", "Bio", "Bio+Vess", "Vess")
-pie(slices, labels = lbls, main = paste0("All data: SB02 Soundscape Summary (", round(nrow(cdetftPie)/24)," days)") )
-
-#-----------------------------------------------------------------------------------------
-#COMPARISIONS- with without vessel present-- is there a bias in variation?
-head( cdetft )
-cNoVess = cdetft[cdetft$TotalVesselDet == 0,]
-cYeVess = cdetft[cdetft$TotalVesselDet > 0,]
-
-#boxplot of windspeed-- is wind speed higher without vessel detection? 
-BBm = reshape :: melt(cdetft, id.vars = "TotalVesselDet", measure.vars = c("avgWSPD"))
-BBm$TotalVesselDet = as.numeric(as.character(BBm$TotalVesselDet))
-BBm$value = as.numeric(as.character(BBm$value))
- ggplot(BBm, aes(TotalVesselDet, value, group=TotalVesselDet)) + 
-  geom_boxplot()+
-  ylab("Wind speed")+ xlab("Vessel detections")
-
-#boxplot of sound level-- is sound level lower without vessel detection?
- BBm = reshape :: melt(cdetft, id.vars = "TotalVesselDet", measure.vars = c("OL_125"))
- BBm$TotalVesselDet = as.numeric(as.character(BBm$TotalVesselDet))
- BBm$value = as.numeric(as.character(BBm$value))
- ggplot(BBm, aes(TotalVesselDet, value, group=TotalVesselDet)) + 
-   geom_boxplot()+
-   ylab("Sound Level")+ xlab("Vessel detections")
- 
-#-----------------------------------------------------------------------------------------
-# SPECTROGRAM
- tLabel = paste0( "Low rank: ", site, "-", as.character(min(cdetft$DateF)), "-", as.character( max(cdetft$DateF) ), " (hours = ", length(cdetft$DateF), ")")
- 
- SPLm = reshape :: melt(cdetft, id.vars = "DateF", 
-                        measure.vars = c("OL_31.5", "OL_63", "OL_125","OL_250",
-                                         "OL_500", "OL_1000", "OL_2000", "OL_4000","OL_8000","OL_16000"))
-#SPLm$Fq = as.numeric( gsub("OL_","", SPLm$variable) )
-   
-SPLm$Fq <- factor(SPLm$variable, ordered = TRUE, 
-                                 levels = c("OL_31.5", "OL_63", "OL_125","OL_250",
-                                            "OL_500", "OL_1000", "OL_2000", "OL_4000","OL_8000","OL_16000"))
-ggplot(SPLm, aes(DateF, Fq, fill=value)) + 
-  geom_raster() +
-  xlab("Date")+ ylab("Frequency")+ 
-  scale_fill_gradient(low="white", high="purple") +
-  labs(x="Sample hour", y="Frequency", title=tLabel) +
-  theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
-                     axis.text.y=element_text(size=9),
-                     plot.title=element_text(size=11))
-#not ideal... because frequency ranges are same size tile... how do I plot so spacing is correct?
-
-
 #-----------------------------------------------------------------------------------------
 #ANALYSIS: run as separate sites
 #-----------------------------------------------------------------------------------------
@@ -240,8 +91,6 @@ setwd(sdir)
 
 #FORMAT DATA: TOL variation-- hourly one third octave bands, 
 #-----------------------------------------------
-#df   = as.data.frame ( fread(input=TOLFiles[2]))
-#stmp = sapply( strsplit(basename(TOLFiles[2]),"_") , `[`, 2)
 df = NULL
 for (ii in 1:length(TOLFiles)){
   dftmp = as.data.frame ( fread(input=TOLFiles[ii]))
@@ -250,7 +99,7 @@ for (ii in 1:length(TOLFiles)){
   df = rbind(df,cbind(dftmp,site,deployment))
 }
 head(df)
-hist(df$TOL_13)
+
 #format the date column 
 df$`yyyy-mm-ddTHH:MM:SSZ`
 df$DateF     = as.POSIXct( gsub(".000Z", "", gsub("T", " ", df$`yyyy-mm-ddTHH:MM:SSZ`)), tz = "GMT" )
@@ -259,14 +108,20 @@ df$Hr  = hour(df$DateF)
 df$Mth = month(df$DateFday)
 
 #truncate to time period of interest
-tmpAP   = timesInterst[timesInterst$Site == site,]
-nv   = df[ (df$DateFday >= as.Date(tmpAP$DateStart,format = "%m/%d/%Y") &
-            df$DateFday <= as.Date(tmpAP$DateEnd,format = "%m/%d/%Y") ),]
+if (site == "SB02") {
+  tmpAP   = timesInterst[timesInterst$Site == site,]
+  nv   = df[ (df$DateFday >= as.Date(tmpAP$DateStart,format = "%m/%d/%Y") &
+                df$DateFday <= as.Date(tmpAP$DateEnd,format = "%m/%d/%Y") ),]
+} else {
+  nv   = df
+}
+
 #format the data  
 as.data.frame(colnames(nv))
-hix  = as.numeric( gsub("TOL_","",names(nv)[2:34]) )
-Nv   = as.matrix( ( nv[,2:34]) ) #dB
-hist(as.numeric(Nv))
+idx = grep("^TOL", colnames(nv))
+hix  = as.numeric( gsub("TOL_","",names(nv)[idx]) )
+Nv   = as.matrix( ( nv[,idx]) ) #dB
+hist(as.numeric(Nv), main = "check TOL values")
 NvP  = as.matrix(10^(Nv/20))     #pressure units
 nvDate = nv$DateF
 
@@ -287,7 +142,7 @@ Lr = as.data.frame(nvpcaTOL$L)
 colnames(Lr) = hix
 LrDB = 10*log10( Lr^2 )  #CHECK: min(LrDB$`63`), no negative values, just values without transients
 colnames(LrDB) = hix
-#LrDB$DateTimeF = nv$DateF
+# LrDB$DateTimeF = nv$DateF
 LrDB =as.matrix(LrDB)
 
 #sparse matrix
@@ -298,71 +153,320 @@ SpDB = 10*log10( (Sp)^2 )
 colnames(SpDB) = hix
 #Sp$DateTimeF = nv$DateF
 
-# visualize results-- LOW RANK
+# visualize results-- LOW RANK (works for all sites)
 #-----------------------------------------------------------------------------------------
 #1) spectra for each hour
-NvMlr <- reshape :: melt(t(LrDB)  )
-tLabel = paste0( "Low rank: ", site, "-", as.character(min(nv$DateF)), "-", as.character( max(nv$DateF) ), " (hours = ", length(nv$DateF), ")")
-tLabelo = paste0( "Original: ", site, "-", as.character(min(nv$DateF)), "-", as.character( max(nv$DateF) ), " (hours = ", length(nv$DateF), ")")
-head( NvMlr )
-hist(NvMlr$value,main=tLabel)
+NvMlr   = reshape :: melt(t(LrDB)  )
 
-ggplot(NvMlr, aes(X1, value, group = as.factor(X2)))+ 
+#only plot specific days to simplify spectra plots
+uhrs = unique( NvMlr$X2 )
+dateInfo = as.data.frame( cbind((uhrs), (as.character(nvDate) )) )
+dateInfo$DateF     = as.POSIXct( gsub(".000Z", "", gsub("T", " ", dateInfo$V2)), tz = "GMT" )
+dateInfo$yr  = year(dateInfo$DateF )
+dateInfo$mth = month(dateInfo$DateF )
+dateInfo$hr  = hour(dateInfo$DateF )
+dateInfo$jday  = yday(dateInfo$DateF )
+dateInfo$wday  = weekdays(dateInfo$DateF )
+dateInfo$day  = as.Date(dateInfo$DateF )
+idx    = uhrs[which(dateInfo$mth  == 4)] #only select April days
+smth = "April"
+
+
+#1) spectra-- truncated to specific days- 
+tLabel  = paste0( site, "-", as.character(min(nv$DateF)), "-", as.character( max(nv$DateF) ), " (hours = ", length(nv$DateF), ")")
+
+# original matrix
+NvMO   = reshape :: melt(t(Nv)  )
+NvMOt  = NvMlr[NvMO$X2 %in% idx,]
+pO = ggplot(NvMOt, aes(X1, value, group = as.factor(X2)))+ 
   geom_line(alpha=.05)+ scale_x_continuous(trans = "log10")+ 
-  ggtitle(tLabel)+ xlab("")+ theme_minimal()
-## NEXT: color by windspeed
+  labs(title = paste(site, " Original (", smth, ")"))+
+  xlab("") + ylab("")+
+  theme_minimal()
+
+# low rank matrix-- color by year?
 
 
-#2) Spectrograms/images
-oldpar <- par(no.readonly=T)
-par(mfrow=c(2,1),oma=c(4,2,1,1),mar=c(1,4.5,1,1)+.1,mgp=c(3.5,0.75,0),las=1)
-zl=c(min(min(LrDB),min(LrDB)), max(Nv))
-clrs=colorRampPalette(rev(c("orange","purple")))(100)
+NvMlr   = reshape :: melt(t(LrDB)  )
+#add year column in NvMlr based on V2 value-- this takes way too long!!
+NvMlr$yr = 0
+idx2     = uhrs[which(dateInfo$yr  == 2019)]
+for (ii in 1:length(idx2)){
+  NvMlr$yr[ NvMlr$X2  == idx2[ii] ] = 2019
+}
 
-image(Nv[dim(Nv)[1]:1,],col=clrs,axes=F,zlim=zl,main = tLabelo)
-axis(side=2,at=1:11/11,labels=o3b$CentHz[seq(from=3,to=33,by=3)])
+idx2     = uhrs[which(dateInfo$yr  == 2020)]
+for (ii in 1:length(idx2)){
+  NvMlr$yr[ NvMlr$X2  == idx2[ii] ] = 2020
+}
 
-image(LrDB[dim(LrDB)[1]:1,],col=clrs,axes=F,zlim=zl,main = tLabel)
-axis(side=2,at=1:11/11,labels=o3b$CentHz[seq(from=3,to=33,by=3)])
+#only select April dates
+NvMlrt  = NvMlr[NvMlr$X2 %in% idx,] 
+pL = ggplot(NvMlrt, aes(X1, value, group = as.factor(X2), color = as.factor(yr) ) ) + 
+  geom_line(alpha=.05)+
+  scale_x_continuous(trans = "log10")+ 
+  labs(title = "Low Rank")+ 
+  scale_color_manual(values=c('#E69F00','#56B4E9')) + #c("gray",'#E69F00','#56B4E9')
+  xlab("") + ylab("")+
+  ylim(c(60,114))+
+  theme_minimal()+
+  theme(legend.position="none") 
+# 
+#E69F00 = orange (2019)
+#56B4E9 = blue   (2020)
 
-mtext(text="time in hours",side=1,outer=T,las=0,line=2.5)
-mtext(text="one-third octave band (Hz)",side=2,outer=T,las=0)
-par(oldpar)
+# sparse matrix
+NvMsp <- reshape :: melt(t(Sp)  )
+NvMspt  = NvMsp[NvMsp$X2 %in% idx,]
+pS = ggplot(NvMspt, aes(X1, (value), group = as.factor(X2)))+ 
+  geom_line(alpha=.07)+ scale_x_continuous(trans = "log10")+ 
+  labs(title = "Sparse", caption = tLabel )+
+  xlab("Frequency [Hz]") + ylab("")+
+   theme_minimal()
 
-#OTHER OPTIONS... not as ideal
-image(1:ncol(LrDB), 1:nrow(LrDB), t(LrDB)[, nrow(LrDB):1])  #low rank matrix
-ggplot(NvMlr, aes((X2), X1, fill=value)) + 
-  geom_tile() + 
-  scale_fill_gradient(low="grey90", high="red") +
-  labs(x="Sample hour", y="Frequency", title=tLabel) +
-  theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
-                     axis.text.y=element_text(size=9),
-                     plot.title=element_text(size=11))
+grid.arrange(pL, pS)
 
+
+#SB02-- figure out if off at same windspeed-- yes it is an offset in dB
+# as.data.frame(colnames(dataAdyt))
+# dataAdyt$BioP2 = rowSums( dataAdyt[, c(50, 53:57)] ) 
+# 
+# dataAdytt = dataAdyt[ dataAdyt$BioP2 == 0, ]
+# #dataAdytt = dataAdyt[ dataAdyt$avgWSPDL > 20, ]
+# 
+# ggplot(dataAdytt,aes( avgWSPDL, OL_125, color=as.factor(Yr) ) ) +
+# geom_point(size = dataAdytt$PropVessel_daily/10) 
+# 
+# dataAdyttt = dataAdytt[, c(60, 41, 6:15)]
+# dataAdytttm <- reshape :: melt(( dataAdyttt)  )
+
+#2) Spectrograms/images (not used)
+# oldpar <- par(no.readonly=T)
+# par(mfrow=c(2,1),oma=c(4,2,1,1),mar=c(1,4.5,1,1)+.1,mgp=c(3.5,0.75,0),las=1)
+# zl=c(min(min(LrDB),min(LrDB)), max(Nv))
+# clrs=colorRampPalette(rev(c("orange","purple")))(100)
+# 
+# image(Nv[dim(Nv)[1]:1,],col=clrs,axes=F,zlim=zl,main = tLabelo)
+# axis(side=2,at=1:11/11,labels=o3b$CentHz[seq(from=3,to=33,by=3)])
+# 
+# image(LrDB[dim(LrDB)[1]:1,],col=clrs,axes=F,zlim=zl,main = tLabel)
+# axis(side=2,at=1:11/11,labels=o3b$CentHz[seq(from=3,to=33,by=3)])
+# 
+# mtext(text="time in hours",side=1,outer=T,las=0,line=2.5)
+# mtext(text="one-third octave band (Hz)",side=2,outer=T,las=0)
+# par(oldpar)
 
 #DIFFERENCE in LR from "ambient" in each frequency band and each hour (difference matrix)
 # how much did ambient change when transients removed?
 #-----------------------------------------------------------------------------------------
 # Difference in LR to ambient, if positive, transients removed, so ambient (LR) is actually XX lower 
-diffAmb = ( Nv - LrDB ) #difference in dB
+diffAmb = ( Nv - LrDB ) # difference in dB
+diffAmb = ( Nv - LrDB ) # energy from the transients... difference in dB
+
 colnames(diffAmb) = hix
 diffAmbt = reshape :: melt(t(diffAmb)  )
-min(diffAmb)
-max(diffAmb)
 diffAmb = as.data.frame(( diffAmb))
 
 #what was the average change for each year- in specific frequency 
-diffAmb_date =  cbind(diffAmb, nv$DateF) 
+diffAmb_date    =  cbind(diffAmb, nv$DateF) 
 diffAmb_date$Yr = year(diffAmb_date$`nv$DateF`)
-aggregate(diffAmb$`63`,  by=list(diffAmb_date$Yr), mean)
-aggregate(diffAmb$`125`, by=list(diffAmb_date$Yr), min)
+#aggregate(diffAmb$`20`,  by=list(diffAmb_date$Yr), mean)
+#aggregate(diffAmb$`125`, by=list(diffAmb_date$Yr), min)
 
 #PLOT: what does the difference look like, summarized by frequency, each point is an hourly measure
-ggplot(diffAmbt, aes(value, as.factor(X1), group = X1) )+
-  geom_boxplot()+
-  xlab("Difference in ambient")+
-  ylab("Frequency (1/3 octave bands)")+
-  ggtitle("How much transient sounds add to ambient levels")
+# ggplot(diffAmbt, aes(value, as.factor(X1), group = X1) )+
+#   geom_boxplot()+
+#   xlab("Difference in ambient")+
+#   ylab("Frequency (1/3 octave bands)")+
+#   ggtitle("How much transient sounds add to ambient levels")
+
+#just plot at bars for mean different with error bars
+diffAmbtFQ = aggregate(diffAmbt, by=list(diffAmbt$X1), mean)
+tmp = aggregate(diffAmbt, by=list(diffAmbt$X1), sd)
+diffAmbtFQ$sd = tmp$value
+
+ggplot(diffAmbtFQ, aes(as.factor(X1), value, group = X1) )+
+  geom_bar(stat = "identity")+
+  geom_errorbar(aes(ymin=value, ymax=value+sd), position=position_dodge(.5), width=.2) +
+  ylab("Average Difference Origional Sound Levels and Low Rank")+
+  xlab("Frequency (1/3 octave bands)")+
+  ggtitle(paste0(site, ": How much transient sounds add to ambient levels"))+
+  ylim(c(-.2,6))+
+  theme_minimal()
+#save out to illustrator and add biological sound bands to the graphic, included in ESOMM
+
+#now want to zoom into April 2020 vs 2019... evidence for more "effect" of transient signals?
+#-----------------------------------------------------------------------------------------
+diffAmb_date$Mth = month(diffAmb_date$`nv$DateF`)
+diffAmb_dateFeb  = diffAmb_date[diffAmb_date$Mth == 4,]
+
+diffAmbtFQ2 = aggregate(diffAmb_dateFeb,  by=list(diffAmb_dateFeb$Yr), mean)
+diffAmbtFQ2m = reshape :: melt(diffAmbtFQ2, id.vars = "Yr", 
+                               measure.vars = names(diffAmbtFQ2)[2:34])
+
+tmp = aggregate(diffAmb_dateFeb, by=list(diffAmb_dateFeb$Yr), sd)
+tmp = reshape :: melt(tmp, id.vars = "Group.1", 
+                      measure.vars = names(diffAmbtFQ2)[2:34])
+diffAmbtFQ2m$sd = tmp$value
+
+ggplot(diffAmbtFQ2m, aes(as.factor(variable), value, fill = as.factor(Yr)) )+
+  geom_bar(stat = "identity",color="black", position=position_dodge(), width=0.65, size=0.3) +
+  geom_errorbar(aes(ymin=value, ymax=value+sd), position=position_dodge(.5), width=.2) +
+  ylab("Average Difference Origional Sound Levels and Low Rank")+
+  xlab("")+
+  scale_fill_manual(values=c( "#E69F00","#56B4E9") )+
+  ggtitle("")+
+  theme_minimal()
+
+#difference in low rank
+LrDBt = reshape :: melt(t(LrDB)  )
+#add date information
+LrDB = as.data.frame(( LrDB))
+LrDB_date     =  cbind(LrDB, nv$DateF) 
+LrDB_date$Mth = month(LrDB_date$`nv$DateF`)
+LrDB_date$Yr  = year(LrDB_date$`nv$DateF`)
+LrDB_date_Apr  = LrDB_date[LrDB_date$Mth == 4,]
+
+
+LrDB_date_Apr2 = aggregate(LrDB_date_Apr,  by=list(LrDB_date_Apr$Yr), mean)
+LrDB_date_Apr2m = reshape :: melt(LrDB_date_Apr2, id.vars = "Yr", 
+                               measure.vars = names(LrDB_date_Apr2)[2:34])
+tmp = aggregate(LrDB_date_Apr, by=list(LrDB_date_Apr$Yr), sd)
+tmp = reshape :: melt(tmp, id.vars = "Group.1", 
+                      measure.vars = names(diffAmbtFQ2)[2:34])
+LrDB_date_Apr2m$sd = tmp$value
+
+ggplot(LrDB_date_Apr2m, aes( ((variable)), value, fill = as.factor(Yr)) )+
+  geom_bar(stat = "identity",color="black", position=position_dodge(), width=0.65, size=0.3) +
+  geom_errorbar(aes(ymin=value, ymax=value+sd), position=position_dodge(.5), width=.2) +
+  ylab("Average Difference Origional Sound Levels and Low Rank")+
+  xlab("Low Rank Levels ")+
+  scale_fill_manual(values=c( "#E69F00","#56B4E9") )+
+  ggtitle("")+
+  theme_minimal()
+#use this one!
+ggplot(LrDB_date_Apr2m, aes(((variable)), value, color = as.factor(Yr)) )+
+  geom_point( position = position_dodge(.5) ) +
+  geom_errorbar(aes(ymin=value-sd, ymax=value+sd), position=position_dodge(.5), width=.2) +
+  ylab("Low Rank")+
+  xlab("Frequency 1/3 octave band")+
+  scale_color_manual(values=c( "#E69F00","#56B4E9") )+
+  ggtitle("")+
+  theme_minimal()
+
+x1 = LrDB_date_Apr2m[(LrDB_date_Apr2m$Yr== 2019),]
+x2 = LrDB_date_Apr2m[(LrDB_date_Apr2m$Yr== 2020),3]
+
+xd = LrDB_date_Apr2m[(LrDB_date_Apr2m$Yr== 2020),3] -  LrDB_date_Apr2m[(LrDB_date_Apr2m$Yr== 2019),3]
+cbind(x1, x2,xd)
+mean(xd) ## 2 dB offset??
+
+ggplot(LrDB_date_Apr2m, aes(as.numeric(as.character((variable)) ), value, color = as.factor(Yr)) )+
+  geom_point()+
+  geom_line()
+  geom_ribbon(aes(ymin=value-sd, ymax=value+sd), alpha = .1) +
+  ylab("Low Rank")+
+  xlab("Frequency 1/3 octave band ")+
+  scale_fill_manual(values=c( "#E69F00","#56B4E9") )+
+  ggtitle("")+
+  theme_minimal()
+
+# just look at sparse matrix
+Sp = as.data.frame(( Sp))
+Sp_date     =  cbind(Sp, nv$DateF) 
+Sp_date$Mth = month(Sp_date$`nv$DateF`)
+Sp_date$Yr  = year(Sp_date$`nv$DateF`)
+Sp_date_Apr = diffAmb_date[Sp_date$Mth == 4,]
+
+Sp_date_Apr2 = aggregate(Sp_date_Apr,  by=list(LrDB_date_Apr$Yr), mean)
+Sp_date_Apr2m = reshape :: melt(Sp_date_Apr2, id.vars = "Yr", 
+                                  measure.vars = names(Sp_date_Apr2)[2:34])
+tmp = aggregate(Sp_date_Apr, by=list(Sp_date_Apr$Yr), sd)
+tmp = reshape :: melt(tmp, id.vars = "Group.1", 
+                      measure.vars = names(diffAmbtFQ2)[2:34])
+Sp_date_Apr2m$sd = tmp$value
+
+
+ggplot(Sp_date_Apr2m, aes(((variable)), value, color = as.factor(Yr)) )+
+  geom_point( position = position_dodge(.5) ) +
+  geom_errorbar(aes(ymin=value-sd, ymax=value+sd), position=position_dodge(.5), width=.2) +
+  ylab("Low Rank")+
+  xlab("Frequency 1/3 octave band")+
+  scale_fill_manual(values=c( "#E69F00","#56B4E9") )+
+  ggtitle("")+
+  theme_minimal()
+#use this one!
+ggplot(Sp_date_Apr2m, aes( ((variable)), value, fill = as.factor(Yr)) )+
+  geom_bar(stat = "identity",color="black", position=position_dodge(), width=0.65, size=0.3) +
+  geom_errorbar(aes(ymin=value, ymax=value+sd), position=position_dodge(.5), width=.2) +
+  ylab("Monthly Average Sparse Matrix Values")+
+  xlab("Frequency 1/3 octave band")+
+  scale_fill_manual(values=c( "#E69F00","#56B4E9") )+
+  ggtitle("")+
+  theme_minimal()
+
+# what are the features of the low rank matrix? SVD of the LR spectra
+#SB02: can we separate wind vs ship dominated spectra?
+#-----------------------------------------------------------------------------------------
+# SPL in row = hour, columns = frequency
+indf = nvpcaTOL$L 
+
+# standardize the matrix, used math of correspondence: 
+#https://www.displayr.com/math-correspondence-analysis/
+B = as.matrix( scale(indf) )
+B[1,1]
+
+# find a new set of variables/features that are uncorrelated and explain as much variance in the data as possible
+Lsvd = svd(B) 
+length(Lsvd$d)  #singular values, 33 values... for each frequency 1 x 33
+dim(Lsvd$u)     #left singular vectors, rows of inputs data (hour)  721 x 30
+dim(Lsvd$v)     #right singular vectors, matrix columns (frequency) 33  X 33
+
+#PLOT: summary of the SVD results
+par(mfrow = c(1, 3))
+image(t(B)[, nrow(B):1], main = "Original Data")
+plot(Lsvd$u[, 1], 17521:1, ylab = "Hour index",      xlab = "First left singular vector", pch = 19)
+plot(Lsvd$v[, 1],          xlab = "Frequency index", ylab = "First right singular vector", pch = 19)
+
+#variance explained by the columns- frequency in low-rank matrix
+prop.table = round_any( prop.table(svd(B)$d^2),.001, floor)
+plot(Lsvd$d)
+sum(prop.table[1:3]) #variance explained by first 3 components
+sum(prop.table[1:2]) #variance explained by first 2 components
+
+#PLOT: How do I know what these components represent, what frequency bands??
+dim( data.frame(Lsvd$u[ ,  1:2]) )
+par(mfrow = c(1, 3))
+plot(Lsvd$u[ ,  1]) #looks like windspeed plot, except at the end with fish
+plot(Lsvd$u[ ,  2])
+plot(Lsvd$u[ ,  3])
+
+#frequency bands-- 
+par(mfrow = c(1, 3))
+plot(hix, Lsvd$v[ ,  1]) 
+plot(hix, Lsvd$v[ ,  2])
+plot(hix, Lsvd$v[ ,  3])
+FQ_LRLF = hix[11:18]
+FQ_LRHF = hix[24:30]
+
+#PLOT: approximate the original data with outer product of the 1st and 2nd singular vectors
+# can see what frequency bands are contributing to the SVD
+approx  = with(Lsvd, outer(u[, 1], v[, 1]) )
+approx2 = with(Lsvd, outer(u[, 2], v[, 2]) )
+approx3 = with(Lsvd, outer(u[, 3], v[, 3]) )
+par(mfrow = c(1, 4))
+image(t(B)[, nrow(B):1], main = "Original Data")
+image(t(approx)[, nrow(approx):1],   main = "Approximated Matrix-1st ")
+
+#ugh did not separate out the fish and wind!!!
+image(t(approx2)[, nrow(approx2):1], main = "Approximated Matrix-2nd ")
+image(t(approx3)[, nrow(approx2):1], main = "Approximated Matrix-2nd ")
+#?? so, we can separate out the low frequency (wind) and high frequency (shrimp),
+# and recreate the conditions... and see the magnitude change over time, accurate estimate of ambient in 500
+
+
+
+
 
 
 # visualize results-- Sparse
@@ -385,10 +489,12 @@ nvRc$DateF = as.POSIXct(nvRc$DateF , tz = "GMT") #head(nvRc) #check
 nvRc$Yr   = year(nvRc$DateF)
 nvRc$Mth  = month(nvRc$DateF)
 nvRcMar   = nvRc[nvRc$Mth == 3,]
+
 nvRcMar19 = nvRcMar[nvRcMar$Yr == 2019,]
 nvRcMar20 = nvRcMar[nvRcMar$Yr == 2020,]
 diffAmb19 <- reshape :: melt(t(nvRcMar19[,2:34]) )
 diffAmb20 <- reshape :: melt(t(nvRcMar20[,2:34]) )
+
 ggplot(diffAmb19, aes(value, as.factor(X1), group = X1) )+
   geom_boxplot()+
   xlab("Difference in ambient")+
@@ -406,7 +512,7 @@ ggplot(diffAmb20, aes(value, as.factor(X1), group = X1) )+
 
 #PLOTS
 #-----------------------------------------------------------------------------------------
-#low-rank spectra-- spectra for each hour
+#low-rank spectra-- spectra for each hour-- too much data.. all data
 NvM <- reshape :: melt(t(nvpcaTOL$L)  )
 p2 = ggplot(NvM, aes(X1, value, group = as.factor(X2))) + geom_line(alpha=.1) + ggtitle("Low rank")+ xlab("")+ theme_minimal()
 #sparse spectra-- spectra for each hour
@@ -415,7 +521,7 @@ p3=ggplot(NvMs, aes(X1, value,group = as.factor(X2))) + geom_line(alpha=.1) + gg
 #low rank + sparse gets back to origional data
 NvMs <- reshape :: melt(t(nvpcaTOL$S) +t(nvpcaTOL$L)  )
 p4=ggplot(NvMs, aes(X1, value,group = as.factor(X2))) + geom_line(alpha=.1) + ggtitle("L+S")+ xlab("")+ theme_minimal()
-#spectra from origional data
+#spectra from original data
 NvM1 <- reshape :: melt(t(Nv)  )
 NvM1$X1 = as.numeric( gsub("TOL_","",NvM1$X1) )
 p1=ggplot(NvM1, aes(log10(X1), value, group = as.factor(X2)) ) + geom_line(alpha=.1) + xlab("")+ ggtitle("Original Data")+ theme_minimal()
@@ -485,7 +591,7 @@ ggplot(tst3,aes(X1,value,color=X2))+
 # 3 dB higher in 2020.... in low rank
 
 
-#SPARCE RANK SPECTRA-- separate by year
+#SPARse RANK SPECTRA-- separate by year
 #-----------------------------------------------------------------------------------------
 #select only specific rows--- year and months
 Srpc19 = as.data.frame( nvpcaTOL$S[idx19,] )#2019 data
@@ -525,11 +631,6 @@ ggplot(tst3,aes(X1,value,color=X2))+
   ggtitle("Sparse compare")+ xlab("")+ theme_minimal()+
   facet_wrap(~YR)
 # infrequeny 95th percentile events in low frequency 
-
-
-
-
-
 
 
 
@@ -649,7 +750,7 @@ pMS = ggplot(NvLdett, aes(FQ, SPL, group = as.factor(TIMESTEP), colour=as.factor
   #guides(colour = guide_legend(override.aes = list(alpha = 1))) +
   scale_x_continuous(name = "Frequency 1/3 octave bands", breaks = c(1,10,20,30), labels = c(hix[1], hix[10], hix[20],hix[30])) +
   theme(legend.position = "none")
-#PLOT: sparse matric with BLUE present
+#PLOT: sparse matrix with BLUE present
 samps = nrow(c1S[c1S$bluewhaleDet>0,])
 detR = do.call(rbind, replicate(ncol(nvpcaTOL$S), c1S$bluewhaleDet, simplify=FALSE))
 detRm <- reshape :: melt((detR)  )
@@ -667,7 +768,7 @@ pBW = ggplot(NvLdett, aes(FQ, SPL, group = as.factor(TIMESTEP), colour=as.factor
   scale_x_continuous(name = "Frequency 1/3 octave bands", breaks = c(1,10,20,30), labels = c(hix[1], hix[10], hix[20],hix[30]))+
   theme(legend.position = "none")
 
-#PLOT: sparse matric with VESSEL present, only
+#PLOT: sparse matrix with VESSEL present, only
 samps = nrow(c1S[c1S$VesP>0,])
 detR = do.call(rbind, replicate(ncol(nvpcaTOL$S), c1S$VesP, simplify=FALSE))
 detRm <- reshape :: melt((detR)  )
@@ -743,14 +844,14 @@ image(1:30, 1:721, t(B)[, nrow(B):1])       #scaled low rank matrix
 # hierarchical clustering algorithm, 
 # NOTE: does not account for just mean shifted data, and multiple patterns layered on top of each
 heatmap(B)
-heatmap(indf) # cluters of data in frequency (wind, low frequency crap, snapping shrimp, and clusters of data in time)
+heatmap(indf) # clusters of data in frequency (wind, low frequency crap, snapping shrimp, and clusters of data in time)
 hix #1/3 otave bands for reference to graphic
 
 hh = dist(indf) %>% hclust
 dataMatrixOrdered <- indf[hh$order, ]
 par(mfrow = c(1, 3))
 image(t(dataMatrixOrdered)[, nrow(dataMatrixOrdered):1])
-plot(rowMeans(dataMatrixOrdered), 721:1, , xlab = "Row Mean", ylab = "Row", pch = 19)
+plot(rowMeans(dataMatrixOrdered), 721:1, xlab = "Row Mean", ylab = "Row", pch = 19)
 plot(colMeans(dataMatrixOrdered), xlab = "Column", ylab = "Column Mean", pch = 19)
 hix[11:18]
 
@@ -764,8 +865,8 @@ dim(Lsvd$v) #righg dingular vectors, matrix columns (frequency) 30  X 30
 #PLOT: summary of the SVD
 par(mfrow = c(1, 3))
 image(t(B)[, nrow(B):1], main = "Original Data")
-plot(Lsvd$u[, 1], 721:1, , ylab = "Row", xlab = "First left singular vector", pch = 19)
-plot(Lsvd$v[, 1], xlab = "Column", ylab = "First right singular vector", pch = 19)
+plot(Lsvd$u[, 1], 721:1, ylab = "Row", xlab = "First left singular vector", pch = 19)
+plot(Lsvd$v[, 1],        xlab = "Column", ylab = "First right singular vector", pch = 19)
 #variance explained by the columns- frequency in low-rank matrix
 prop.table = round_any( prop.table(svd(B)$d^2),.001, floor)
 plot(Lsvd$d)
